@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
 import Signup from "./Signup";
 import Login from "./Login";
+import Landing from "./Landing";
 import Dashboard from "./Dashboard";
 import AddItem from "./AddItem";
 import Wardrobe from "./Wardrobe";
@@ -37,13 +38,6 @@ function App() {
 
   return (
     <BrowserRouter>
-      {!user && (
-        <nav style={{ textAlign: "center", margin: "20px" }}>
-          <Link to="/signup" style={{ marginRight: "15px" }}>Sign Up</Link>
-          <Link to="/login">Login</Link>
-        </nav>
-      )}
-
       <Routes>
         <Route
           path="/signup"
@@ -131,7 +125,7 @@ function App() {
 
         <Route
           path="/"
-          element={<Navigate to={user ? "/dashboard" : "/login"} />}
+          element={user ? <Navigate to="/dashboard" /> : <Landing />}
         />
       </Routes>
     </BrowserRouter>

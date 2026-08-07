@@ -2,14 +2,16 @@ from flask import Flask, request, jsonify
 import cv2
 import numpy as np
 import requests
-from sklearn.cluster import KMeans
-import tensorflow as tf
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-from tensorflow.keras.models import load_model
+from sklearn.cluster import KMeans # type: ignore
+import tensorflow as tf # type: ignore
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input # type: ignore
+from tensorflow.keras.models import load_model # type: ignore
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 import base64
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -229,68 +231,19 @@ def analyze_body_type(image):
     }
 
 
-# ---------- Virtual Try-On (pose-guided warp + Poisson blend) ----------
+# ---------- Virtual Try-On (IDM-VTON via remote Gradio inference) ----------
 
-def warp_garment_onto_body(body_image, garment_image, landmarks, img_w, img_h):
-    """Warp the garment image to roughly match the body's shoulder/hip positions,
-    then blend it onto the body photo using Poisson blending."""
+from idm_vton_client import run_idm_vton
 
-    def get_point(landmark_id):
-        lm = landmarks[landmark_id]
-        return np.array([lm.x * img_w, lm.y * img_h], dtype=np.float32)
-
-    left_shoulder = get_point(LEFT_SHOULDER)
-    right_shoulder = get_point(RIGHT_SHOULDER)
-    left_hip = get_point(LEFT_HIP)
-    right_hip = get_point(RIGHT_HIP)
-
-    dst_points = np.array([left_shoulder, right_shoulder, right_hip, left_hip], dtype=np.float32)
-
-    gh, gw = garment_image.shape[:2]
-    src_points = np.array([[0, 0], [gw, 0], [gw, gh], [0, gh]], dtype=np.float32)
-
-    matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_garment = cv2.warpPerspective(garment_image, matrix, (img_w, img_h))
-
-    if garment_image.shape[2] == 4:
-        alpha = garment_image[:, :, 3]
-    else:
-        alpha = np.ones((gh, gw), dtype=np.uint8) * 255
-    warped_alpha = cv2.warpPerspective(alpha, matrix, (img_w, img_h))
-    mask = (warped_alpha > 10).astype(np.uint8) * 255
-
-    if warped_garment.shape[2] == 4:
-        warped_garment_bgr = warped_garment[:, :, :3]
-    else:
-        warped_garment_bgr = warped_garment
-
-    ys, xs = np.where(mask > 0)
-    if len(xs) == 0:
-        return body_image
-
-    center = (int(xs.mean()), int(ys.mean()))
-
+def basic_tryon(body_image_url, garment_image_url, garment_desc):
+    """Delegates to the IDM-VTON model running on a remote Gradio endpoint
+    (see idm_vton_client.py). Takes URLs directly since the remote client
+    downloads/handles the files itself."""
     try:
-        result = cv2.seamlessClone(warped_garment_bgr, body_image, mask, center, cv2.NORMAL_CLONE)
-    except Exception:
-        mask_3ch = cv2.merge([mask, mask, mask]) / 255.0
-        result = (body_image * (1 - mask_3ch) + warped_garment_bgr * mask_3ch).astype(np.uint8)
-
-    return result
-
-def basic_tryon(body_image, garment_image):
-    image_rgb = cv2.cvtColor(body_image, cv2.COLOR_BGR2RGB)
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
-    result = pose_landmarker.detect(mp_image)
-
-    if not result.pose_landmarks:
-        return None, "Could not detect a body pose. Please upload a clear, full-body photo."
-
-    landmarks = result.pose_landmarks[0]
-    h, w = body_image.shape[:2]
-
-    composited = warp_garment_onto_body(body_image, garment_image, landmarks, w, h)
-    return composited, None
+        result_path = run_idm_vton(body_image_url, garment_image_url, garment_desc)
+        return result_path, None
+    except Exception as e:
+        return None, f"Try-on generation failed: {e}"
 
 
 @app.route("/analyze-color", methods=["POST"])
@@ -385,25 +338,21 @@ def basic_tryon_route():
     data = request.get_json()
     body_url = data.get("bodyImageUrl")
     garment_url = data.get("garmentImageUrl")
+    garment_desc = data.get("garmentDescription", "a garment")
 
     if not body_url or not garment_url:
         return jsonify({"error": "bodyImageUrl and garmentImageUrl are required"}), 400
 
     try:
-        body_image = download_image(body_url)
-        garment_response = requests.get(garment_url)
-        garment_array = np.frombuffer(garment_response.content, np.uint8)
-        garment_image = cv2.imdecode(garment_array, cv2.IMREAD_UNCHANGED)
-
-        if body_image is None or garment_image is None:
-            return jsonify({"error": "Could not decode one of the images"}), 400
-
-        result_image, error = basic_tryon(body_image, garment_image)
+        result_path, error = basic_tryon(body_url, garment_url, garment_desc)
         if error:
             return jsonify({"error": error}), 400
 
-        _, buffer = cv2.imencode(".jpg", result_image)
-        result_b64 = base64.b64encode(buffer).decode("utf-8")
+        # run_idm_vton returns a local filepath from the Gradio client;
+        # read + re-encode as base64 so the response shape matches what
+        # the client already expects.
+        with open(result_path, "rb") as f:
+            result_b64 = base64.b64encode(f.read()).decode("utf-8")
 
         return jsonify({"resultImageBase64": f"data:image/jpeg;base64,{result_b64}"})
 

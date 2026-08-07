@@ -15,12 +15,13 @@ router.get("/:userId", async (req, res) => {
 // Create or update a user's profile (upsert)
 router.put("/:userId", async (req, res) => {
   try {
-    const { gender, bodyType, skinTone, preferredColors, fashionStyle, occasionPreferences } = req.body;
+    const { name, gender, bodyType, skinTone, preferredColors, fashionStyle, occasionPreferences } = req.body;
 
     const updatedProfile = await UserProfile.findOneAndUpdate(
       { userId: req.params.userId },
       {
         userId: req.params.userId,
+        name,
         gender,
         bodyType,
         skinTone,

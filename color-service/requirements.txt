@@ -6,3 +6,4 @@ requests==2.34.2
 tensorflow==2.18.0
 pillow==11.0.0
 mediapipe==0.10.35
+gradio_client==0.14.0

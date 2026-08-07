@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { Upload } from "lucide-react";
+import { Button } from "./components/ui/button";
+import BottomNav from "./BottomNav";
 
 const CLOUD_NAME = "hb85nhr5";
 const UPLOAD_PRESET = "stylevault_wardrobe";
 const API_BASE_URL = "http://localhost:5000";
+
 
 function FitAdvisor({ user }) {
   const [image, setImage] = useState(null);
@@ -58,86 +62,99 @@ function FitAdvisor({ user }) {
     }
   };
 
-  return (
-    <div style={{ maxWidth: "480px", margin: "50px auto", textAlign: "center" }}>
-      <h2>Should You Buy It?</h2>
-      <p style={{ fontSize: "13px", color: "#666" }}>
-        Upload a photo of the item, or a photo of yourself wearing it — we'll check it against your style profile.
-      </p>
+  const resultStyles = !result
+    ? ""
+    : result.score >= 7
+    ? "bg-success/10 border border-success/30"
+    : result.score >= 5
+    ? "bg-warning/10 border border-warning/30"
+    : "bg-destructive/10 border border-destructive/30";
 
-      <div style={{ margin: "15px 0" }}>
-        <label style={{ marginRight: "15px" }}>
-          <input
-            type="radio"
-            checked={uploadType === "garment"}
-            onChange={() => setUploadType("garment")}
-          />{" "}
-          Just the item
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={uploadType === "wearing"}
-            onChange={() => setUploadType("wearing")}
-          />{" "}
-          Me wearing it
-        </label>
+  return (
+    <div className="min-h-screen bg-background px-6 pt-8 pb-24">
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-2xl font-bold text-foreground">Should You Buy It?</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Upload a photo of the item, or a photo of yourself wearing it — we'll check it against your style profile.
+        </p>
+
+        <div className="mt-6 rounded-lg bg-card p-5 shadow-sm">
+          <div className="flex gap-4 text-sm text-foreground">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={uploadType === "garment"}
+                onChange={() => setUploadType("garment")}
+                className="accent-primary"
+              />
+              Just the item
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={uploadType === "wearing"}
+                onChange={() => setUploadType("wearing")}
+                className="accent-primary"
+              />
+              Me wearing it
+            </label>
+          </div>
+
+          <label
+            htmlFor="fit-advisor-image"
+            className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input py-8 text-center hover:bg-muted"
+          >
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">
+              {image ? "Change photo" : "Tap to select a photo"}
+            </span>
+            <input
+              id="fit-advisor-image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+          </label>
+
+          {preview && (
+            <div className="mt-4 flex justify-center">
+              <img src={preview} alt="Preview" className="max-h-56 rounded-lg object-cover" />
+            </div>
+          )}
+
+          {image && (
+            <Button onClick={handleAnalyze} disabled={analyzing} className="mt-4 w-full rounded-full">
+              {analyzing ? "Analyzing..." : "Check This Item"}
+            </Button>
+          )}
+
+          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+        </div>
+
+        {result && (
+          <div className={`mt-4 rounded-lg p-4 text-left ${resultStyles}`}>
+            <h3 className="mb-2 text-base font-bold text-foreground">{result.verdict}</h3>
+            <p className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+              Detected:{" "}
+              <strong className="capitalize text-foreground">{result.category || "unknown item"}</strong>
+              {result.detectedColor && (
+                <span
+                  className="inline-block h-3 w-3 rounded-full border border-border"
+                  style={{ backgroundColor: result.detectedColor }}
+                />
+              )}
+            </p>
+            <ul className="list-disc pl-4 text-sm text-foreground">
+              {result.reasons.map((r, i) => (
+                <li key={i} className="mb-1">{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
-      <input type="file" accept="image/*" onChange={handleImageChange} />
-
-      {preview && (
-        <div style={{ margin: "15px 0" }}>
-          <img src={preview} alt="Preview" style={{ maxWidth: "220px", borderRadius: "6px" }} />
-        </div>
-      )}
-
-      {image && (
-        <button onClick={handleAnalyze} disabled={analyzing} style={{ width: "100%", padding: "10px" }}>
-          {analyzing ? "Analyzing..." : "Check This Item"}
-        </button>
-      )}
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      {result && (
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "15px",
-            borderRadius: "8px",
-            textAlign: "left",
-            backgroundColor:
-              result.score >= 7 ? "#e6f7e6" : result.score >= 5 ? "#fff4e5" : "#fde8e8",
-          }}
-        >
-          <h3 style={{ margin: "0 0 8px" }}>{result.verdict}</h3>
-          <p style={{ margin: "0 0 8px", fontSize: "13px", color: "#555" }}>
-            Detected: <strong style={{ textTransform: "capitalize" }}>{result.category || "unknown item"}</strong>
-            {result.detectedColor && (
-              <span>
-                {" "}·{" "}
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: "12px",
-                    height: "12px",
-                    borderRadius: "50%",
-                    backgroundColor: result.detectedColor,
-                    border: "1px solid #999",
-                    verticalAlign: "middle",
-                  }}
-                />
-              </span>
-            )}
-          </p>
-          <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "14px" }}>
-            {result.reasons.map((r, i) => (
-              <li key={i} style={{ marginBottom: "4px" }}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <BottomNav />
     </div>
   );
 }

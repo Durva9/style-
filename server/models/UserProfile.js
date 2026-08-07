@@ -6,6 +6,10 @@ const userProfileSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  name: {
+    type: String,
+    default: "",
+  },
   gender: {
     type: String,
     enum: ["male", "female", "non-binary", "prefer-not-to-say", ""],

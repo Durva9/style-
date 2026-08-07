@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { Bookmark, RefreshCw } from "lucide-react";
+import { Button } from "./components/ui/button";
+import BottomNav from "./BottomNav";
 
-const API_BASE_URL = "http://localhost:5000";
 
 const occasionOptions = ["casual", "work", "party", "wedding", "festive", "sports", "travel"];
 const venueOptions = ["indoor", "outdoor", "beach", "city", "countryside", "rooftop", "garden", "club"];
 const crowdOptions = ["intimate", "social", "professional", "festive", "family", "friends"];
 const colorOptions = ["black", "white", "red", "blue", "green", "yellow", "pink", "beige", "brown", "purple"];
+const API_BASE_URL = "http://localhost:5000";
 
 const slotLabels = {
   dress: "Dress",
@@ -16,6 +19,9 @@ const slotLabels = {
   bottom: "Bottom",
   jacket: "Jacket",
 };
+
+const selectClass =
+  "rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 function OutfitRecommendation({ user }) {
   const [occasion, setOccasion] = useState("casual");
@@ -28,6 +34,8 @@ function OutfitRecommendation({ user }) {
   const [weather, setWeather] = useState(null);
   const [outfit, setOutfit] = useState(null);
   const [reasoning, setReasoning] = useState(null);
+  const [excludeIds, setExcludeIds] = useState([]);
+  const [regenerating, setRegenerating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -40,7 +48,7 @@ function OutfitRecommendation({ user }) {
     );
   };
 
-  const getRecommendation = async (temperature) => {
+  const getRecommendation = async (temperature, excludeList = []) => {
     try {
       const res = await axios.post(`${API_BASE_URL}/api/recommend`, {
         userId: user.uid,
@@ -50,6 +58,7 @@ function OutfitRecommendation({ user }) {
         crowdType,
         colorPreference,
         customColorHex: customColorHex || null,
+        excludeIds: excludeList,
       });
 
       if (res.data.message) {
@@ -58,6 +67,7 @@ function OutfitRecommendation({ user }) {
       } else {
         setOutfit(res.data.outfit);
         setReasoning(res.data.reasoning);
+        setExcludeIds(res.data.usedIds || []);
         setInfoMessage("");
       }
     } catch (err) {
@@ -92,6 +102,17 @@ function OutfitRecommendation({ user }) {
     }
   };
 
+  const handleRegenerate = async () => {
+    if (!weather) return;
+    setRegenerating(true);
+    setError("");
+    try {
+      await getRecommendation(weather.temperature, excludeIds);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const handleSaveOutfit = async () => {
     if (!outfit) return;
     setSaving(true);
@@ -116,142 +137,151 @@ function OutfitRecommendation({ user }) {
   };
 
   return (
-    <div style={{ maxWidth: "750px", margin: "50px auto", textAlign: "center" }}>
-      <h2>AI Outfit Recommendation</h2>
-      <p>
-        <Link to="/saved-outfits">View Saved Outfits</Link>
-      </p>
-
-      <div style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "15px", textAlign: "left", margin: "20px 0" }}>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+    <div className="min-h-screen bg-background px-6 pt-8 pb-24">
+      <div className="mx-auto max-w-2xl">
+        <div className="flex items-center justify-between">
           <div>
-            <label style={{ display: "block", fontSize: "12px" }}>Occasion</label>
-            <select value={occasion} onChange={(e) => setOccasion(e.target.value)} style={{ padding: "6px" }}>
-              {occasionOptions.map((o) => (
-                <option key={o} value={o}>{o}</option>
-              ))}
-            </select>
+            <h1 className="text-2xl font-bold text-foreground">Generate Outfit</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Tell us the occasion, we'll style it</p>
+          </div>
+          <Link
+            to="/saved-outfits"
+            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+          >
+            <Bookmark className="h-3.5 w-3.5" />
+            Saved Outfits
+          </Link>
+        </div>
+
+        <div className="mt-6 space-y-4 rounded-lg bg-card p-5 shadow-sm">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Occasion</label>
+              <select value={occasion} onChange={(e) => setOccasion(e.target.value)} className={`${selectClass} w-full`}>
+                {occasionOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Venue Type</label>
+              <select value={venueType} onChange={(e) => setVenueType(e.target.value)} className={`${selectClass} w-full`}>
+                {venueOptions.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Crowd Type</label>
+              <select value={crowdType} onChange={(e) => setCrowdType(e.target.value)} className={`${selectClass} w-full`}>
+                {crowdOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">City / Weather</label>
+              <input
+                type="text"
+                value={weather ? `${weather.city}: ${weather.temperature}°C` : city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setWeather(null);
+                }}
+                placeholder="e.g. Mumbai"
+                className={`${selectClass} w-full`}
+              />
+            </div>
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "12px" }}>Venue Type</label>
-            <select value={venueType} onChange={(e) => setVenueType(e.target.value)} style={{ padding: "6px" }}>
-              {venueOptions.map((v) => (
-                <option key={v} value={v}>{v}</option>
+            <label className="text-xs font-medium text-muted-foreground">Color Preference (optional)</label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {colorOptions.map((color) => (
+                <button
+                  type="button"
+                  key={color}
+                  onClick={() => toggleColor(color)}
+                  className={`rounded-full px-3 py-1 text-xs capitalize transition-colors ${
+                    colorPreference.includes(color)
+                      ? "border-2 border-foreground bg-muted font-semibold"
+                      : "border border-input bg-background hover:bg-muted"
+                  }`}
+                >
+                  {color}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
-          <div>
-            <label style={{ display: "block", fontSize: "12px" }}>Crowd Type</label>
-            <select value={crowdType} onChange={(e) => setCrowdType(e.target.value)} style={{ padding: "6px" }}>
-              {crowdOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: "block", fontSize: "12px" }}>City / Weather</label>
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-medium text-muted-foreground">Or pick a custom color</label>
             <input
-              type="text"
-              value={weather ? `${weather.city}: ${weather.temperature}°C, ${weather.description}` : city}
-              onChange={(e) => {
-                setCity(e.target.value);
-                setWeather(null);
-              }}
-              placeholder="Type your city, e.g. Mumbai"
-              style={{ padding: "6px", minWidth: "220px" }}
+              type="color"
+              value={customColorHex || "#ffffff"}
+              onChange={(e) => setCustomColorHex(e.target.value)}
+              className="h-8 w-12 cursor-pointer rounded border border-input"
             />
           </div>
-        </div>
 
-        <label style={{ display: "block", fontSize: "12px", marginTop: "10px" }}>Color Preference (optional)</label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "6px 0" }}>
-          {colorOptions.map((color) => (
-            <button
-              type="button"
-              key={color}
-              onClick={() => toggleColor(color)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: "16px",
-                fontSize: "12px",
-                border: colorPreference.includes(color) ? "2px solid #333" : "1px solid #ccc",
-                backgroundColor: colorPreference.includes(color) ? "#eee" : "#fff",
-                cursor: "pointer",
-                textTransform: "capitalize",
-              }}
-            >
-              {color}
-            </button>
-          ))}
-        </div>
-
-        <label style={{ display: "block", fontSize: "12px", marginTop: "8px" }}>Or pick a custom color</label>
-        <input
-          type="color"
-          value={customColorHex || "#ffffff"}
-          onChange={(e) => setCustomColorHex(e.target.value)}
-          style={{ marginTop: "4px" }}
-        />
-
-        <div style={{ marginTop: "15px", textAlign: "center" }}>
-          <button onClick={handleGenerate} disabled={loading} style={{ padding: "8px 20px" }}>
+          <Button onClick={handleGenerate} disabled={loading} className="w-full rounded-full">
             {loading ? "Thinking..." : "Get Outfit"}
-          </button>
+          </Button>
         </div>
+
+        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+        {infoMessage && <p className="mt-3 text-sm text-muted-foreground">{infoMessage}</p>}
+
+        {outfit && (
+          <>
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {Object.entries(outfit).map(([slot, item]) => (
+                <div key={slot} className="rounded-lg bg-card p-3 text-left shadow-sm">
+                  <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                    {slotLabels[slot] || slot}
+                  </p>
+                  <img
+                    src={item.imageUrl}
+                    alt={item.category}
+                    className="h-36 w-full rounded-md object-cover"
+                  />
+                  <p className="mt-1.5 text-sm capitalize text-foreground">{item.category}</p>
+                  {reasoning && reasoning[slot] && (
+                    <ul className="mt-1 list-disc pl-4 text-[11px] text-muted-foreground">
+                      {reasoning[slot].map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="gap-2 rounded-full"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {regenerating ? "Regenerating..." : "Regenerate"}
+              </Button>
+              <Button onClick={handleSaveOutfit} disabled={saving} className="rounded-full">
+                {saving ? "Saving..." : "Save This Outfit"}
+              </Button>
+            </div>
+            {saveMessage && (
+              <p className="mt-2 text-center text-sm text-muted-foreground">{saveMessage}</p>
+            )}
+          </>
+        )}
       </div>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {infoMessage && <p>{infoMessage}</p>}
-
-      {outfit && (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-              gap: "15px",
-              marginTop: "20px",
-            }}
-          >
-            {Object.entries(outfit).map(([slot, item]) => (
-              <div
-                key={slot}
-                style={{
-                  border: "1px solid #ccc",
-                  borderRadius: "8px",
-                  padding: "10px",
-                  textAlign: "left",
-                }}
-              >
-                <p style={{ margin: "0 0 6px", fontWeight: "bold", fontSize: "13px", color: "#888" }}>
-                  {slotLabels[slot] || slot}
-                </p>
-                <img
-                  src={item.imageUrl}
-                  alt={item.category}
-                  style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "4px" }}
-                />
-                <p style={{ marginTop: "6px", textTransform: "capitalize" }}>{item.category}</p>
-                {reasoning && reasoning[slot] && (
-                  <ul style={{ fontSize: "11px", color: "#777", paddingLeft: "16px", margin: "4px 0 0" }}>
-                    {reasoning[slot].map((r, i) => (
-                      <li key={i}>{r}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <button onClick={handleSaveOutfit} disabled={saving} style={{ padding: "10px 20px", marginTop: "20px" }}>
-            {saving ? "Saving..." : "Save This Outfit"}
-          </button>
-          {saveMessage && <p style={{ fontSize: "13px", color: "#4444aa" }}>{saveMessage}</p>}
-        </>
-      )}
+      <BottomNav />
     </div>
   );
 }

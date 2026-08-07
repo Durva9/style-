@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import BottomNav from "./BottomNav";
 
-const API_BASE_URL = "http://localhost:5000";
 
 function hexToRgb(hex) {
   const clean = hex.replace("#", "");
@@ -11,6 +11,7 @@ function hexToRgb(hex) {
     parseInt(clean.substring(4, 6), 16),
   ];
 }
+const API_BASE_URL = "http://localhost:5000";
 
 function rgbToHsv(r, g, b) {
   r /= 255; g /= 255; b /= 255;
@@ -33,14 +34,12 @@ function nearestColorName(hex) {
   const [r, g, b] = hexToRgb(hex);
   const [h, s, v] = rgbToHsv(r, g, b);
 
-  // Low saturation = grayscale family
   if (s < 0.12) {
     if (v > 0.9) return "White";
     if (v < 0.2) return "Black";
     return "Gray";
   }
 
-  // Muted/desaturated warm tones = beige/brown family
   if (s < 0.35 && v > 0.5 && h >= 20 && h <= 60) {
     return v > 0.75 ? "Beige" : "Brown";
   }
@@ -48,7 +47,6 @@ function nearestColorName(hex) {
     return "Brown";
   }
 
-  // Hue-based naming for saturated colors
   if (h < 15 || h >= 345) return "Red";
   if (h < 45) return "Orange";
   if (h < 65) return "Yellow";
@@ -131,8 +129,20 @@ function WardrobeAnalytics({ user }) {
     }));
   }, [data]);
 
-  if (loading) return <p style={{ textAlign: "center" }}>Loading your wardrobe analytics...</p>;
-  if (error) return <p style={{ textAlign: "center", color: "red" }}>{error}</p>;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        Loading your wardrobe analytics...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-destructive">
+        {error}
+      </div>
+    );
+  }
   if (!data) return null;
 
   const maxCategoryCount = Math.max(...Object.values(data.categoryCounts), 1);
@@ -140,157 +150,135 @@ function WardrobeAnalytics({ user }) {
   const maxOccasionCount = Math.max(...Object.values(data.occasionCounts), 1);
 
   return (
-    <div style={{ maxWidth: "800px", margin: "50px auto" }}>
-      <h2 style={{ textAlign: "center" }}>Wardrobe Analytics</h2>
+    <div className="min-h-screen bg-background px-6 pt-8 pb-24">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-bold text-foreground">Wardrobe Analytics</h1>
 
-      <div style={{ display: "flex", justifyContent: "center", gap: "30px", margin: "25px 0", textAlign: "center" }}>
-        <div>
-          <div style={{ fontSize: "28px", fontWeight: "bold" }}>{data.totalItems}</div>
-          <div style={{ fontSize: "12px", color: "#888" }}>Total Items</div>
-        </div>
-        <div>
-          <div style={{ fontSize: "28px", fontWeight: "bold" }}>{data.savedOutfitsCount}</div>
-          <div style={{ fontSize: "12px", color: "#888" }}>Saved Outfits</div>
-        </div>
-      </div>
-
-      {/* Colors donut chart */}
-      <section style={{ marginBottom: "35px" }}>
-        <h3>Colors in Your Wardrobe</h3>
-        {colorDonutData.length === 0 ? (
-          <p style={{ color: "#888", fontSize: "14px" }}>No color data yet.</p>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: "25px", flexWrap: "wrap" }}>
-            <div
-              style={{
-                width: "160px",
-                height: "160px",
-                borderRadius: "50%",
-                background: buildDonutGradient(colorDonutData),
-                position: "relative",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "90px",
-                  height: "90px",
-                  borderRadius: "50%",
-                  backgroundColor: "#fff",
-                }}
-              />
-            </div>
-            <div>
-              {colorDonutData.map((c, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                  <div
-                    style={{
-                      width: "14px",
-                      height: "14px",
-                      borderRadius: "50%",
-                      backgroundColor: c.hex,
-                      border: "1px solid #999",
-                    }}
-                  />
-                  <span style={{ fontSize: "13px" }}>
-  {nearestColorName(c.hex)} — {c.percentage}% ({c.count} item{c.count !== 1 ? "s" : ""})
-</span>
-                </div>
-              ))}
-            </div>
+        {/* Top stats */}
+        <div className="mt-6 flex justify-center gap-8 text-center">
+          <div>
+            <div className="text-3xl font-bold text-foreground">{data.totalItems}</div>
+            <div className="text-xs text-muted-foreground">Total Items</div>
           </div>
-        )}
-      </section>
-
-      {/* Category breakdown */}
-      <section style={{ marginBottom: "30px" }}>
-        <h3>Category Breakdown</h3>
-        {Object.entries(data.categoryCounts).map(([cat, count]) => (
-          <div key={cat} style={{ marginBottom: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "2px" }}>
-              <span style={{ textTransform: "capitalize" }}>{cat}</span>
-              <span>{count}</span>
-            </div>
-            <div style={{ backgroundColor: "#eee", borderRadius: "4px", height: "10px" }}>
-              <div
-                style={{
-                  width: `${(count / maxCategoryCount) * 100}%`,
-                  backgroundColor: "#6c63ff",
-                  height: "100%",
-                  borderRadius: "4px",
-                }}
-              />
-            </div>
+          <div>
+            <div className="text-3xl font-bold text-foreground">{data.savedOutfitsCount}</div>
+            <div className="text-xs text-muted-foreground">Saved Outfits</div>
           </div>
-        ))}
-      </section>
+        </div>
 
-      {/* Wardrobe growth - year selector + month bars */}
-      <section style={{ marginBottom: "30px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>Wardrobe Growth</h3>
-          {availableYears.length > 0 && (
-            <select value={selectedYear || ""} onChange={(e) => setSelectedYear(e.target.value)} style={{ padding: "4px" }}>
-              {availableYears.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+        {/* Colors donut chart */}
+        <section className="mt-8 rounded-lg bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Colors in Your Wardrobe</h2>
+          {colorDonutData.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No color data yet.</p>
+          ) : (
+            <div className="mt-4 flex flex-wrap items-center gap-6">
+              <div
+                className="relative h-40 w-40 flex-shrink-0 rounded-full"
+                style={{ background: buildDonutGradient(colorDonutData) }}
+              >
+                <div className="absolute left-1/2 top-1/2 h-[90px] w-[90px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-card" />
+              </div>
+              <div>
+                {colorDonutData.map((c, i) => (
+                  <div key={i} className="mb-1.5 flex items-center gap-2">
+                    <div
+                      className="h-3.5 w-3.5 rounded-full border border-border"
+                      style={{ backgroundColor: c.hex }}
+                    />
+                    <span className="text-sm text-foreground">
+                      {nearestColorName(c.hex)} — {c.percentage}% ({c.count} item{c.count !== 1 ? "s" : ""})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
+        </section>
 
-        {availableYears.length === 0 ? (
-          <p style={{ color: "#888", fontSize: "14px" }}>No data yet.</p>
-        ) : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", height: "100px", marginTop: "12px" }}>
-            {monthsForSelectedYear.map((m) => (
-              <div key={m.name} style={{ textAlign: "center" }}>
-                <div
-                  style={{
-                    width: "24px",
-                    height: `${(m.count / maxMonthCount) * 80}px`,
-                    backgroundColor: m.count > 0 ? "#6c63ff" : "#eee",
-                    borderRadius: "3px 3px 0 0",
-                    margin: "0 auto",
-                  }}
-                  title={`${m.count} item${m.count !== 1 ? "s" : ""}`}
-                />
-                <p style={{ fontSize: "10px", margin: "4px 0 0", color: "#888" }}>{m.name}</p>
+        {/* Category breakdown */}
+        <section className="mt-6 rounded-lg bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Category Breakdown</h2>
+          <div className="mt-3 space-y-3">
+            {Object.entries(data.categoryCounts).map(([cat, count]) => (
+              <div key={cat}>
+                <div className="mb-1 flex justify-between text-xs text-foreground">
+                  <span className="capitalize">{cat}</span>
+                  <span>{count}</span>
+                </div>
+                <div className="h-2.5 rounded bg-muted">
+                  <div
+                    className="h-full rounded bg-primary"
+                    style={{ width: `${(count / maxCategoryCount) * 100}%` }}
+                  />
+                </div>
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* Saved outfits by occasion */}
-      <section style={{ marginBottom: "30px" }}>
-        <h3>Saved Outfits by Occasion</h3>
-        {Object.keys(data.occasionCounts).length === 0 ? (
-          <p style={{ color: "#888", fontSize: "14px" }}>No saved outfits yet.</p>
-        ) : (
-          Object.entries(data.occasionCounts).map(([occ, count]) => (
-            <div key={occ} style={{ marginBottom: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "2px" }}>
-                <span style={{ textTransform: "capitalize" }}>{occ}</span>
-                <span>{count}</span>
-              </div>
-              <div style={{ backgroundColor: "#eee", borderRadius: "4px", height: "10px" }}>
-                <div
-                  style={{
-                    width: `${(count / maxOccasionCount) * 100}%`,
-                    backgroundColor: "#ff8c69",
-                    height: "100%",
-                    borderRadius: "4px",
-                  }}
-                />
-              </div>
+        {/* Wardrobe growth - year selector + month bars */}
+        <section className="mt-6 rounded-lg bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Wardrobe Growth</h2>
+            {availableYears.length > 0 && (
+              <select
+                value={selectedYear || ""}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {availableYears.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No data yet.</p>
+          ) : (
+            <div className="mt-4 flex h-[100px] items-end gap-2">
+              {monthsForSelectedYear.map((m) => (
+                <div key={m.name} className="text-center">
+                  <div
+                    title={`${m.count} item${m.count !== 1 ? "s" : ""}`}
+                    className={`mx-auto w-6 rounded-t-sm ${m.count > 0 ? "bg-primary" : "bg-muted"}`}
+                    style={{ height: `${(m.count / maxMonthCount) * 80}px` }}
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">{m.name}</p>
+                </div>
+              ))}
             </div>
-          ))
-        )}
-      </section>
+          )}
+        </section>
+
+        {/* Saved outfits by occasion */}
+        <section className="mt-6 rounded-lg bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Saved Outfits by Occasion</h2>
+          {Object.keys(data.occasionCounts).length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No saved outfits yet.</p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {Object.entries(data.occasionCounts).map(([occ, count]) => (
+                <div key={occ}>
+                  <div className="mb-1 flex justify-between text-xs text-foreground">
+                    <span className="capitalize">{occ}</span>
+                    <span>{count}</span>
+                  </div>
+                  <div className="h-2.5 rounded bg-muted">
+                    <div
+                      className="h-full rounded bg-accent-foreground/70"
+                      style={{ width: `${(count / maxOccasionCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <BottomNav />
     </div>
   );
 }

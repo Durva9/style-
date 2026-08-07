@@ -88,24 +88,23 @@ function scoreItem(item, allowedCategories, sessionColors, profileColors) {
   return { score, reasons };
 }
 
-function pickBest(items, category, allowedCategories, sessionColors, profileColors) {
+function pickCandidates(items, category, allowedCategories, sessionColors, profileColors) {
   const candidates = items.filter((i) => i.category === category);
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) return [];
 
-  let best = null;
-  let bestScore = -1;
-  let bestReasons = [];
-
-  for (const item of candidates) {
+  const scored = candidates.map((item) => {
     const { score, reasons } = scoreItem(item, allowedCategories, sessionColors, profileColors);
-    if (score > bestScore) {
-      bestScore = score;
-      best = item;
-      bestReasons = reasons;
-    }
-  }
+    return { item, score, reasons };
+  });
 
-  return { item: best, reasons: bestReasons };
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+function pickBest(items, category, allowedCategories, sessionColors, profileColors) {
+  const candidates = pickCandidates(items, category, allowedCategories, sessionColors, profileColors);
+  if (candidates.length === 0) return null;
+  return { item: candidates[0].item, reasons: candidates[0].reasons };
 }
 
 router.post("/", async (req, res) => {
@@ -118,7 +117,10 @@ router.post("/", async (req, res) => {
       crowdType,
       colorPreference,
       customColorHex,
+      excludeIds,
     } = req.body;
+
+    const excluded = new Set(Array.isArray(excludeIds) ? excludeIds : []);
 
     if (!userId || temperature === undefined || !occasion) {
       return res.status(400).json({ error: "userId, temperature, and occasion are required" });
@@ -132,7 +134,15 @@ router.post("/", async (req, res) => {
       sessionColors.push(nearestColorName(customColorHex));
     }
 
-    const items = await Item.find({ userId });
+    let items = await Item.find({ userId });
+if (excluded.size > 0) {
+  const nonExcluded = items.filter((i) => !excluded.has(String(i._id)));
+  // Only actually exclude if doing so still leaves us enough to work with;
+  // otherwise fall back to the full set (better to repeat than to show nothing)
+  if (nonExcluded.length > 0) {
+    items = nonExcluded;
+  }
+}
 
     if (items.length === 0) {
       return res.json({ outfit: {}, reasoning: {}, message: "Your wardrobe is empty. Add some items first!" });
@@ -181,7 +191,8 @@ router.post("/", async (req, res) => {
       return res.json({ outfit: {}, reasoning: {}, message: "Couldn't find a matching outfit. Try adding more variety to your wardrobe!" });
     }
 
-    res.json({ outfit, reasoning });
+    const usedIds = Object.values(outfit).map((item) => String(item._id));
+res.json({ outfit, reasoning, usedIds });
   } catch (err) {
     console.error("Recommendation failed:", err.message);
     res.status(500).json({ error: err.message });

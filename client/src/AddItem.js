@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Upload, Sparkles } from "lucide-react";
+import { Button } from "./components/ui/button";
+import BottomNav from "./BottomNav";
 
 const CLOUD_NAME = "hb85nhr5";
 const UPLOAD_PRESET = "stylevault_wardrobe";
 const API_BASE_URL = "http://localhost:5000";
+
 
 const categoryOptions = ["shirt", "tshirt", "jeans", "dress"];
 
@@ -71,24 +75,24 @@ function AddItem({ user }) {
       setUploadedImageUrl(imageUrl);
 
       const filenameMatch = classifyByFilename(image.name);
-let result;
+      let result;
 
-if (filenameMatch) {
-  result = {
-    predictedCategory: filenameMatch,
-    topPredictions: [{ label: filenameMatch, confidence: 100 }],
-  };
-} else {
-  const classifyRes = await axios.post(`${API_BASE_URL}/api/items/classify`, {
-    imageUrl,
-  });
-  result = classifyRes.data;
-}
+      if (filenameMatch) {
+        result = {
+          predictedCategory: filenameMatch,
+          topPredictions: [{ label: filenameMatch, confidence: 100 }],
+        };
+      } else {
+        const classifyRes = await axios.post(`${API_BASE_URL}/api/items/classify`, {
+          imageUrl,
+        });
+        result = classifyRes.data;
+      }
 
-setSuggestion(result);
-if (result.predictedCategory) {
-  setCategory(result.predictedCategory);
-}
+      setSuggestion(result);
+      if (result.predictedCategory) {
+        setCategory(result.predictedCategory);
+      }
     } catch (err) {
       console.error(err);
       setMessage("Analysis failed, but you can still pick a category manually.");
@@ -129,72 +133,82 @@ if (result.predictedCategory) {
   };
 
   return (
-    <div style={{ maxWidth: "420px", margin: "50px auto", textAlign: "center" }}>
-      <h2>Add Wardrobe Item</h2>
+    <div className="min-h-screen bg-background px-6 pt-8 pb-24">
+      <div className="mx-auto max-w-md">
+        <h1 className="text-2xl font-bold text-foreground">Add Wardrobe Item</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Upload a photo and let AI do the sorting</p>
 
-      <input type="file" accept="image/*" onChange={handleImageChange} />
-
-      {preview && (
-        <div style={{ margin: "15px 0" }}>
-          <img src={preview} alt="Preview" style={{ maxWidth: "200px" }} />
-        </div>
-      )}
-
-      {image && !uploadedImageUrl && (
-        <button
-          onClick={handleAnalyze}
-          disabled={analyzing}
-          style={{ width: "100%", padding: "10px", marginBottom: "15px" }}
-        >
-          {analyzing ? "Analyzing..." : "Analyze with AI"}
-        </button>
-      )}
-
-      {suggestion && (
-        <div
-          style={{
-            backgroundColor: "#f0f4ff",
-            border: "1px solid #ccd6ff",
-            borderRadius: "6px",
-            padding: "10px",
-            marginBottom: "15px",
-            fontSize: "14px",
-            textAlign: "left",
-          }}
-        >
-          {suggestion.predictedCategory ? (
-  <p style={{ margin: 0 }}>
-    AI suggests: <strong style={{ textTransform: "capitalize" }}>{suggestion.predictedCategory}</strong>
-    {" "}({suggestion.topPredictions[0].confidence}% confidence). Feel free to correct it below.
-  </p>
-) : (
-  <p style={{ margin: 0 }}>AI couldn't confidently guess a category — please select one manually.</p>
-)}
-        </div>
-      )}
-
-      {uploadedImageUrl && (
-        <form onSubmit={handleSave}>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{ display: "block", width: "100%", margin: "10px 0", padding: "8px" }}
+        <div className="mt-6 rounded-lg bg-card p-5 shadow-sm">
+          <label
+            htmlFor="item-image"
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input py-8 text-center hover:bg-muted"
           >
-            <option value="">Select Category</option>
-            {categoryOptions.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+            <Upload className="h-6 w-6 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">
+              {image ? "Change photo" : "Tap to select a photo"}
+            </span>
+            <input id="item-image" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+          </label>
 
-          <button type="submit" disabled={saving} style={{ width: "100%", padding: "10px" }}>
-            {saving ? "Saving..." : "Save Item"}
-          </button>
-        </form>
-      )}
+          {preview && (
+            <div className="mt-4 flex justify-center">
+              <img src={preview} alt="Preview" className="max-h-52 rounded-lg object-cover" />
+            </div>
+          )}
 
-      {message && <p style={{ color: "red" }}>{message}</p>}
+          {image && !uploadedImageUrl && (
+            <Button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="mt-4 w-full gap-2 rounded-full"
+            >
+              <Sparkles className="h-4 w-4" />
+              {analyzing ? "Analyzing..." : "Analyze with AI"}
+            </Button>
+          )}
+
+          {suggestion && (
+            <div className="mt-4 rounded-lg border border-accent bg-accent/30 p-3 text-left text-sm">
+              {suggestion.predictedCategory ? (
+                <p className="text-foreground">
+                  AI suggests:{" "}
+                  <strong className="capitalize">{suggestion.predictedCategory}</strong>{" "}
+                  ({suggestion.topPredictions[0].confidence}% confidence). Feel free to correct it below.
+                </p>
+              ) : (
+                <p className="text-foreground">
+                  AI couldn't confidently guess a category — please select one manually.
+                </p>
+              )}
+            </div>
+          )}
+
+          {uploadedImageUrl && (
+            <form onSubmit={handleSave} className="mt-4 space-y-3">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select Category</option>
+                {categoryOptions.map((cat) => (
+                  <option key={cat} value={cat} className="capitalize">
+                    {cat}
+                  </option>
+                ))}
+              </select>
+
+              <Button type="submit" disabled={saving} className="w-full rounded-full">
+                {saving ? "Saving..." : "Save Item"}
+              </Button>
+            </form>
+          )}
+
+          {message && <p className="mt-3 text-sm text-destructive">{message}</p>}
+        </div>
+      </div>
+
+      <BottomNav />
     </div>
   );
 }
