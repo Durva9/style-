@@ -240,7 +240,7 @@ function Analysis({ user, onboarding }) {
 
           <div className="mt-3 space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="bust">Bust/Chest (cm)</Label>
+              <Label htmlFor="bust">Bust/Chest </Label>
               <Input
                 id="bust"
                 type="number"
@@ -250,7 +250,7 @@ function Analysis({ user, onboarding }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="waist">Waist (cm)</Label>
+              <Label htmlFor="waist">Waist </Label>
               <Input
                 id="waist"
                 type="number"
@@ -260,7 +260,7 @@ function Analysis({ user, onboarding }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="hip">Hip (cm)</Label>
+              <Label htmlFor="hip">Hip </Label>
               <Input
                 id="hip"
                 type="number"
