@@ -133,7 +133,9 @@ Update the `CLOUD_NAME` and `UPLOAD_PRESET` constants (found near the top of `Ad
 
 ```bash
 cd color-service
-python -m venv venv
+py -3.12 -m venv venv
+.\venv\Scripts\Activate.ps1
+python --version
 ```
 
 Activate the virtual environment:
@@ -141,6 +143,7 @@ Activate the virtual environment:
 - macOS/Linux: `source venv/bin/activate`
 
 ```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -168,7 +171,7 @@ npm start
 
 # Terminal 3 — Python AI/CV service
 cd color-service
-venv\Scripts\activate      (or source venv/bin/activate on macOS/Linux)
+python patch_gradio_client.py
 python app.py
 ```
 

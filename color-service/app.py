@@ -10,13 +10,46 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
 import base64
+import inspect
+import re
+from keras.src.initializers.initializer import Initializer
 from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
 
+# Newer-Keras .h5 files store extra initializer args (e.g. input_axes) that
+# this Keras version doesn't accept. Drop any config keys the class doesn't know.
+def _safe_from_config(cls, config):
+    params = inspect.signature(cls.__init__).parameters
+    if not any(p.kind == p.VAR_KEYWORD for p in params.values()):
+        config = {k: v for k, v in config.items() if k in params}
+    return cls(**config)
+
+Initializer.from_config = classmethod(_safe_from_config)
+
+# Same idea for layers: newer Keras saves extra args (e.g. BatchNormalization
+# renorm=...). If a layer rejects unknown kwargs, drop them and retry.
+from keras.src.ops.operation import Operation
+
+def _tolerant_layer_from_config(cls, config):
+    config = dict(config)
+    for _ in range(10):
+        try:
+            return cls(**config)
+        except ValueError as e:
+            m = re.search(r"Unrecognized keyword arguments.*?\{(.*?)\}", str(e))
+            bad = re.findall(r"'(\w+)'", m.group(1)) if m else []
+            if not bad:
+                raise TypeError(f"Error when deserializing class '{cls.__name__}': {e}")
+            for k in bad:
+                config.pop(k, None)
+    raise TypeError(f"Could not deserialize class '{cls.__name__}'")
+
+Operation.from_config = classmethod(_tolerant_layer_from_config)
+
 print("Loading fine-tuned clothing classifier...")
-classifier_model = load_model("clothing_classifier.h5")
+classifier_model = load_model("clothing_classifier.h5", compile=False)
 print("Classifier loaded.")
 
 CATEGORY_LABELS = ["shirt", "tshirt", "jeans", "dress", "shoes", "accessory"]

@@ -1,18 +1,17 @@
 """
 Thin client for calling the IDM-VTON model running remotely via Gradio.
 
-Right now this points at a Kaggle notebook's temporary public Gradio link
-(printed when you run `python gradio_demo/app.py` there). That link:
+Points at a Kaggle notebook's temporary public Gradio link (printed when you
+run `python gradio_demo/app.py` there). That link:
   - changes every time the Kaggle notebook is restarted
   - expires after ~72 hours regardless
 
 So: update IDM_VTON_GRADIO_URL in your .env every time you relaunch the
-Kaggle notebook. When you move to a persistent host (HF Spaces, Modal,
-Replicate, etc.), only this URL needs to change -- the calling code in
-app.py stays the same.
+Kaggle notebook.
 """
 
 import os
+import gradio_schema_patch  
 from gradio_client import Client
 
 try:
@@ -41,13 +40,6 @@ def get_client():
 def run_idm_vton(body_image_url, garment_image_url, garment_desc="a garment"):
     """
     Calls the remote IDM-VTON Gradio app's /tryon endpoint.
-
-    NOTE: before relying on this in production, run once locally:
-        from gradio_client import Client
-        Client(IDM_VTON_GRADIO_URL).view_api()
-    ...and confirm the exact parameter names/order below match what it
-    prints, especially the human-image input (IDM-VTON's demo uses an
-    ImageEditor component that expects a dict, not a plain file).
     """
     client = get_client()
 

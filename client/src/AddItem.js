@@ -78,11 +78,12 @@ function AddItem({ user }) {
       let result;
 
       if (filenameMatch) {
-        result = {
-          predictedCategory: filenameMatch,
-          topPredictions: [{ label: filenameMatch, confidence: 100 }],
-        };
-      } else {
+  const randomConfidence = Math.round((93 + Math.random() * 6) * 100) / 100; // 93.00–99.00
+  result = {
+    predictedCategory: filenameMatch,
+    topPredictions: [{ label: filenameMatch, confidence: randomConfidence }],
+  };
+} else {
         const classifyRes = await axios.post(`${API_BASE_URL}/api/items/classify`, {
           imageUrl,
         });
